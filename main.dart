@@ -2,31 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 /////Structs/////
-class Timedinp{
+class Timedinp {
   Offset point;
   DateTime time;
   int state;
   Timedinp(this.point, this.time, this.state);
   //point==null for touchup
 }
-class dataclass {
-  
-  
 
-  List<Timedinp> points=[];
+class Modes {
+  static int draw = 0;
+  static int addCircle = 1;
+  static int erase = 2;
+  static int moveSelect = 5;
+  static int moveMove = 6;
+}
+
+class dataclass {
+  List<Timedinp> points = [];
 
   List<List<Offset>> drawing;
   List<List<Offset>> futuredrawing;
   List<List<Offset>> circles;
   List<List<Offset>> futurecircles;
-  Set<int> moveset={};
+  Set<int> moveset = {};
+  Set<int> movesetcir = {};
+
   List<Offset> movevec;
   int last = 0;
   int canvasstate = 0;
   int index = -1;
   Offset transform = new Offset(0, 0);
   bool restore = false;
-  dataclass( this.drawing,this.futuredrawing,this.circles, this.futurecircles);
+  dataclass(this.drawing, this.futuredrawing, this.circles, this.futurecircles);
 }
 
 /////Structs/////
@@ -49,9 +57,9 @@ class Signature extends CustomPainter {
     if (data.index > -1) {
       //canvas = data.canvs[data.index];
     }
-    for (int i = 0; i < data.drawing.length ; i++){
-      for(int j = 0; j < data.drawing[i].length-1;j++){
-        canvas.drawLine(data.drawing[i][j],data.drawing[i][j+1],paint);
+    for (int i = 0; i < data.drawing.length; i++) {
+      for (int j = 0; j < data.drawing[i].length - 1; j++) {
+        canvas.drawLine(data.drawing[i][j], data.drawing[i][j + 1], paint);
       }
     }
     for (int i = 0; i < data.circles.length; i++) {
@@ -59,9 +67,7 @@ class Signature extends CustomPainter {
         canvas.drawCircle(data.circles[i][0],
             (data.circles[i][1] - data.circles[i][0]).distance, paint);
     }
-    print("CanvasState="+data.canvasstate.toString());
-
-    
+    print("CanvasState=" + data.canvasstate.toString());
   }
 
   @override
@@ -86,8 +92,8 @@ class _MyAppState extends State<MyApp> {
     Feather.lock,
     Feather.mail,
   ];
-  dataclass data =
-      new dataclass(<List<Offset>>[[]],<List<Offset>>[], <List<Offset>>[],<List<Offset>>[]);
+  dataclass data = new dataclass(
+      <List<Offset>>[[]], <List<Offset>>[], <List<Offset>>[], <List<Offset>>[]);
 
   int _pos = 0;
   @override
@@ -104,25 +110,35 @@ class _MyAppState extends State<MyApp> {
                     Offset _localPosition =
                         object.globalToLocal(details.globalPosition);
                     if (_localPosition.dx < 90) return;
-                    data.points.add(Timedinp(_localPosition,DateTime.now(),data.canvasstate));
-                    if (data.canvasstate == 0) {
-                      
-                      data.drawing.last.add(_localPosition);
-                      
-                    } else if (data.canvasstate == 2) {
 
-                      for (int i = 0; i < data.drawing.length ; i++){
-                          for(int j = 0; j < data.drawing[i].length;j++){
-                            if((data.drawing[i][j] - _localPosition).distance < 5){
-                              data.futuredrawing.add(data.drawing[i]);
-                              data.drawing.removeAt(i);
-                              i--;
-                              break;
-                            }
+                    data.points.add(Timedinp(
+                        _localPosition, DateTime.now(), data.canvasstate));
+
+                    if (data.canvasstate == 0) {
+                      data.drawing.last.add(_localPosition);
+                    } else if (data.canvasstate == 2) {
+                      for (int i = 0; i < data.drawing.length; i++) {
+                        for (int j = 0; j < data.drawing[i].length; j++) {
+                          if ((data.drawing[i][j] - _localPosition).distance <
+                              5) {
+                            data.futuredrawing.add(data.drawing[i]);
+                            data.drawing.removeAt(i);
+                            i--;
+                            break;
                           }
                         }
-                      
-                      
+                      }
+                      for (int i = 0; i < data.circles.length; i++) {
+                        if(data.circles[i]==null) continue;
+                        double d =
+                            (data.circles[i][0] - _localPosition).distance -
+                                (data.circles[i][1] - data.circles[i][0]).distance;
+                        if (d < 5 && d > -5) {
+                          data.futurecircles.add(data.circles[i]);
+                          data.circles.removeAt(i);
+                          i--;
+                        }
+                      }
                     } else if (data.canvasstate == 1) {
                       if (data.circles.isEmpty || data.circles.last == null) {
                         data.circles.add([]..add(_localPosition));
@@ -131,44 +147,67 @@ class _MyAppState extends State<MyApp> {
                       } else if (data.circles.last.length == 2) {
                         data.circles.last[1] = _localPosition;
                       }
-                    }else if (data.canvasstate == 5){
-                      for (int i = 0; i < data.drawing.length ; i++){
-                          for(int j = 0; j < data.drawing[i].length;j++){
-                            if((data.drawing[i][j] - _localPosition).distance < 10){
-                              
-                              data.moveset.add(i);
-                              
-                              break;
-                            }
+                    } else if (data.canvasstate == 5) {
+                      for (int i = 0; i < data.drawing.length; i++) {
+                        for (int j = 0; j < data.drawing[i].length; j++) {
+                          if ((data.drawing[i][j] - _localPosition).distance <
+                              10) {
+                            data.moveset.add(i);
+
+                            break;
                           }
                         }
-                    }else if (data.canvasstate == 6){
-                      if(data.movevec.length<1) data.movevec.add(_localPosition);
-                      else if (data.movevec.length >0){
-                        for(int i = 0; i < data.moveset.length ; i++){
-                          for(int j = 0; j < data.drawing[data.moveset.elementAt(i)].length ; j++)
-                          data.drawing[data.moveset.elementAt(i)][j]+=_localPosition-data.movevec[0];
+                      }
+                      for (int i = 0; i < data.circles.length; i++) {
+                        if(data.circles[i]==null) continue;
+                        double d =
+                            (data.circles[i][0] - _localPosition).distance -
+                                (data.circles[i][1] - data.circles[i][0]).distance;
+                        if (d < 5 && d > -5) {
+                          data.movesetcir.add(i);
                         }
-                        data.movevec[0]=_localPosition;
+                      }
+                    } else if (data.canvasstate == 6) {
+                      if (data.movevec.length < 1)
+                        data.movevec.add(_localPosition);
+                      else if (data.movevec.length > 0) {
+                        for (int i = 0; i < data.moveset.length; i++) {
+                          for (int j = 0;
+                              j <
+                                  data.drawing[data.moveset.elementAt(i)]
+                                      .length;
+                              j++)
+                            data.drawing[data.moveset.elementAt(i)][j] +=
+                                _localPosition - data.movevec[0];
+                        }
+                        for (int i = 0; i < data.movesetcir.length; i++) {
+                          data.circles[data.movesetcir.elementAt(i)][0] +=
+                              _localPosition - data.movevec[0];
+                          data.circles[data.movesetcir.elementAt(i)][1] +=
+                              _localPosition - data.movevec[0];
+                        }
+                        data.movevec[0] = _localPosition;
                       }
                     }
-                    
                   });
                 },
                 onPanEnd: (DragEndDetails details) {
-                  if (data.canvasstate == 0){
+                  if (data.canvasstate == 0) {
                     data.drawing.add(<Offset>[]);
-                  }
-                  else if (data.canvasstate == 1) {
-                    if (data.circles.last!=null)
-                      data.circles.add(null);
-                  } else if (data.canvasstate == 5){
-                    setState((){data.canvasstate = 6;});
-                    
-                    data.movevec=[];
-                  }else if (data.canvasstate == 6){
-                    setState((){data.canvasstate = 5;});
-                    data.moveset={};
+                  } else if (data.canvasstate == 1) {
+                    if (data.circles.last != null) data.circles.add(null);
+                  } else if (data.canvasstate == 5) {
+                    setState(() {
+                      data.canvasstate = 6;
+                    });
+
+                    data.movevec = [];
+                  } else if (data.canvasstate == 6) {
+                    setState(() {
+                      data.canvasstate = 5;
+                    });
+                    data.moveset = {};
+                    data.movesetcir = {};
                   }
                 },
                 child: new CustomPaint(
@@ -198,11 +237,11 @@ class _MyAppState extends State<MyApp> {
                           onPressed: () {
                             int k = 0;
                             List<Offset> temp = [];
-                            if (data.canvasstate == 0 && data.drawing.length>1) {
-                              
-                              temp=data.drawing[data.drawing.length-2];
+                            if (data.canvasstate == 0 &&
+                                data.drawing.length > 1) {
+                              temp = data.drawing[data.drawing.length - 2];
                               data.futuredrawing.add(temp);
-                              data.drawing.removeAt(data.drawing.length-2);
+                              data.drawing.removeAt(data.drawing.length - 2);
                             } else if (data.canvasstate == 1 &&
                                 data.circles.length > 0) {
                               temp = data.circles.last;
@@ -216,12 +255,13 @@ class _MyAppState extends State<MyApp> {
                               if (temp != null) {
                                 data.futurecircles.add(temp);
                               }
-                            }else if (data.canvasstate == 2 && data.futuredrawing.length>0){
-                              data.drawing.last=data.futuredrawing.last;
+                            } else if (data.canvasstate == 2 &&
+                                data.futuredrawing.length > 0) {
+                              data.drawing.last = data.futuredrawing.last;
                               data.drawing.add([]);
                               data.futuredrawing.removeLast();
                             }
-                            
+
                             print("Back");
                           },
                           icon: Icon(
@@ -235,9 +275,9 @@ class _MyAppState extends State<MyApp> {
                         padding: EdgeInsets.all(5),
                         child: IconButton(
                             onPressed: () {
-                              
-                              if (data.canvasstate == 0 && data.futuredrawing.length>0) {
-                                data.drawing.last=data.futuredrawing.last;
+                              if (data.canvasstate == 0 &&
+                                  data.futuredrawing.length > 0) {
+                                data.drawing.last = data.futuredrawing.last;
                                 data.drawing.add([]);
                                 data.futuredrawing.removeLast();
                               } else if (data.canvasstate == 1 &&
@@ -257,12 +297,16 @@ class _MyAppState extends State<MyApp> {
                         margin: EdgeInsets.all(5),
                         child: IconButton(
                             onPressed: () {
-                              setState((){data.canvasstate = 0;});
+                              setState(() {
+                                data.canvasstate = 0;
+                              });
                               print("Draw");
                             },
                             icon: Icon(
                               Icons.brush_outlined,
-                              color: data.canvasstate == 0? Colors.red:Colors.lightBlue,
+                              color: data.canvasstate == 0
+                                  ? Colors.red
+                                  : Colors.lightBlue,
                               size: 60,
                             )),
                       ),
@@ -270,12 +314,16 @@ class _MyAppState extends State<MyApp> {
                         padding: EdgeInsets.all(5),
                         child: IconButton(
                             onPressed: () {
-                              setState((){data.canvasstate = 2;});
+                              setState(() {
+                                data.canvasstate = 2;
+                              });
                               print("Eraser");
                             },
                             icon: Icon(
                               Icons.microwave_outlined,
-                              color: data.canvasstate == 2? Colors.red:Colors.lightBlue,
+                              color: data.canvasstate == 2
+                                  ? Colors.red
+                                  : Colors.lightBlue,
                               size: 60,
                             )),
                       ),
@@ -283,12 +331,16 @@ class _MyAppState extends State<MyApp> {
                         padding: EdgeInsets.all(5),
                         child: IconButton(
                             onPressed: () {
-                              setState((){data.canvasstate = 1;});
+                              setState(() {
+                                data.canvasstate = 1;
+                              });
                               print("Circle");
                             },
                             icon: Icon(
                               Icons.add_circle_outline,
-                              color: data.canvasstate == 1? Colors.red:Colors.lightBlue,
+                              color: data.canvasstate == 1
+                                  ? Colors.red
+                                  : Colors.lightBlue,
                               size: 60,
                             )),
                       ),
@@ -296,15 +348,20 @@ class _MyAppState extends State<MyApp> {
                         padding: EdgeInsets.all(5),
                         child: IconButton(
                             onPressed: () {
-                              setState((){data.canvasstate = 5;});
-                              
+                              setState(() {
+                                data.canvasstate = 5;
+                              });
+
                               print("Move");
                             },
                             icon: Icon(
                               icon[0],
-                              color:data.canvasstate == 5? Colors.red:(data.canvasstate == 6? Colors.green:Colors.lightBlue),
+                              color: data.canvasstate == 5
+                                  ? Colors.red
+                                  : (data.canvasstate == 6
+                                      ? Colors.green
+                                      : Colors.lightBlue),
                               size: 60,
-                              
                             )),
                       ),
                     ],
@@ -318,10 +375,12 @@ class _MyAppState extends State<MyApp> {
       floatingActionButton: new FloatingActionButton(
           child: new Icon(Icons.clear),
           onPressed: () {
-            data.drawing=[[]];
+            data.drawing = [[]];
             data.futuredrawing.clear();
             data.circles.clear();
-            setState((){data.canvasstate = 0;});
+            setState(() {
+              data.canvasstate = 0;
+            });
           }),
     );
   }
